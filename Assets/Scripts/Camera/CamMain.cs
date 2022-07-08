@@ -24,10 +24,8 @@ public class CamMain : MonoBehaviour
     public LayerMask camLayerMask;
 
     private float shakeIntensity = 0.0f;
-    private float rumbleIntensity = 0.0f;
     private float shakeDecay;
     private float shakeVariation = 1.0f;
-    private Vector3 shakeVelocity = Vector3.zero;
     private Vector3 shakePosition = Vector3.zero;
     private Quaternion shakeRotation = Quaternion.identity;
     public Vector3 shakeAngles = new Vector3(6.0f, 6.0f, 3.0f);

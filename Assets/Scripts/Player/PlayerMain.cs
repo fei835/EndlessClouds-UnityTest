@@ -45,6 +45,8 @@ public class PlayerMain : MonoBehaviour
     public int attackChainable = -1;
 
     private bool bIsAlive = true;
+    public bool bIsInvincible = true;
+    private CapsuleCollider bodyCol;
 
     private float moveSpeed = 8f;
     private float rotSpeed = 15f;
@@ -60,10 +62,13 @@ public class PlayerMain : MonoBehaviour
         cc = GetComponent<CharacterController>();
         camMain = Camera.main.GetComponent<CamMain>();
         tr = transform;
+        bodyCol = GetComponent<CapsuleCollider>();
+        GameInfos.Instance.SetPlayerMain(this);
     }
 
     private void Start()
     {
+        SetInvincible(false);
         StartCoroutine(FSM());
     }
 
@@ -73,7 +78,7 @@ public class PlayerMain : MonoBehaviour
         {
             anim.SetInteger("State", (int)playerState);
             yield return StartCoroutine(playerState.ToString());
-            Debug.Log("<color=purple>Leaving " + previousPlayerState.ToString() + ", going to  " + playerState.ToString() + "</color>");
+            Debug.Log("<color=green>Leaving " + previousPlayerState.ToString() + ", going to  " + playerState.ToString() + "</color>");
         }
     }
 
@@ -93,6 +98,7 @@ public class PlayerMain : MonoBehaviour
 
     IEnumerator RUNNING()
     {
+        anim.CrossFadeInFixedTime("ANI_Move", 0.2f);
         while (playerState == PlayerStatesEnum.RUNNING)
         {
             UpdateLocomotion();
@@ -119,6 +125,13 @@ public class PlayerMain : MonoBehaviour
             bool bNextAnimStarted = false;
             while (!bEnd)
             {
+                // Confort rotation
+                if (inputManager.inputMoveMagnitude > 0.2f)
+                {
+                    rawDir.eulerAngles = new Vector3(0, camMain.transform.eulerAngles.y + Mathf.Atan2(inputManager.horizontal, inputManager.vertical) * 180 / Mathf.PI, 0);
+                    tr.rotation = Quaternion.Lerp(tr.rotation, rawDir.rotation, Time.deltaTime * 0.6f);
+                }
+
                 if (playerState != PlayerStatesEnum.ATTACK)
                     bEnd = true;
 
@@ -154,13 +167,15 @@ public class PlayerMain : MonoBehaviour
                     {
                         if (!bNextAnimStarted)
                         {
-                            postAttackTimer = 0.3f;
+                            postAttackTimer = 0.1f;
                             bNextAnimStarted = true;
                         }
                         else
                         {
                             if (inputManager.P == InputManager.buttonState.PRESS)
                                 bChaining = true;
+                            else if (inputManager.SPACE == InputManager.buttonState.PRESS)
+                                SetPlayerState(PlayerStatesEnum.DODGE, "Dodge after an attack");
 
                             postAttackTimer -= Time.deltaTime;
                             if (postAttackTimer <= 0f)
@@ -193,7 +208,40 @@ public class PlayerMain : MonoBehaviour
 
     IEnumerator DODGE()
     {
-        yield return null;
+        SetInvincible(true);
+        anim.Play("ANI_Dodge");
+
+        float confortRotTimer = 0.3f;
+        while (playerState == PlayerStatesEnum.DODGE)
+        {
+            // Confort rotation
+            if (confortRotTimer > 0f)
+            {
+                if (inputManager.inputMoveMagnitude > 0.2f)
+                {
+                    rawDir.eulerAngles = new Vector3(0, camMain.transform.eulerAngles.y + Mathf.Atan2(inputManager.horizontal, inputManager.vertical) * 180 / Mathf.PI, 0);
+                    tr.rotation = Quaternion.Lerp(tr.rotation, rawDir.rotation, Time.deltaTime * (rotSpeed / 2));
+                }
+                confortRotTimer -= Time.deltaTime;
+            }
+
+            if (!bIsInvincible)
+            {
+                if (inputManager.inputMoveMagnitude > 0.2f)
+                    SetPlayerState(PlayerStatesEnum.RUNNING, "Running after dodge");
+                else
+                    SetPlayerState(PlayerStatesEnum.IDLE, "Idle after dodge");
+            }
+
+            cc.Move(tr.forward * Time.deltaTime * anim.GetFloat("DodgeSpeed") * moveSpeed);
+            yield return null;
+        }
+    }
+
+    public void SetInvincible(bool bOnOff)
+    {
+        bIsInvincible = bOnOff;
+        bodyCol.enabled = !bOnOff;
     }
 
     void UpdateLocomotion()
@@ -212,7 +260,7 @@ public class PlayerMain : MonoBehaviour
         if (inputManager.P == InputManager.buttonState.PRESS)
             Attack();
         else if (inputManager.SPACE == InputManager.buttonState.PRESS)
-            Debug.Log("dodge");
+            SetPlayerState(PlayerStatesEnum.DODGE, "Pressed dodge");
     }
 
     void Attack()
@@ -238,7 +286,7 @@ public class PlayerMain : MonoBehaviour
     {
         previousPlayerState = playerState;
         playerState = newState;
-        Debug.Log("<color=purple>Leaving " + previousPlayerState.ToString() + ", going to  " + playerState.ToString() + "</color>. Reason : " + reason);
+        Debug.Log("<color=green>Leaving " + previousPlayerState.ToString() + ", going to  " + playerState.ToString() + "</color>. Reason : " + reason);
     }
 
 #if Debug_Hotkeys
@@ -251,9 +299,11 @@ public class PlayerMain : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (bIsInvincible)
+            return;
+
         if (other.gameObject.layer == LayerMask.NameToLayer("AttackPlayer"))
         {
-            camMain.ShakeCam(0.03f);
             SetPlayerState(PlayerStatesEnum.GETHIT, "Got hit!");
             anim.CrossFadeInFixedTime("ANI_Hurt", 0.1f);
             gotHitTimer = 0f;

@@ -19,7 +19,7 @@ public class Projectile : MonoBehaviour
     public void Init()
     {
         col.enabled = true;
-        GameInfos.Instance.GetEnemyManager().SpawnSmokeFx(tr.position, Quaternion.identity);
+        GameInfos.Instance.GetEnemyManager().SpawnSpawnable(SpawnableEnum.SmokeFX, tr.position, Quaternion.identity);
         spawnTime = Time.timeSinceLevelLoad;
     }
 
@@ -29,17 +29,24 @@ public class Projectile : MonoBehaviour
         tr.LookAt(Vector3.Lerp(tr.position + tr.forward, tr.position + Vector3.down, Time.deltaTime * 0.2f));
 
         if (Time.timeSinceLevelLoad > spawnTime + lifeTime)
-            GameInfos.Instance.GetEnemyManager().DespawnRocketBall(gameObject);
+            GameInfos.Instance.GetEnemyManager().DespawnSpawnable(SpawnableEnum.RocketBall, gameObject);
     }
 
     void OnTriggerEnter(Collider other)
     {
-        //Debug.LogWarning(other.transform.root.name);
-        if (other.gameObject.layer == LayerMask.NameToLayer("Player") || other.gameObject.layer == LayerMask.NameToLayer("EnvCol"))
+        if (other.gameObject.layer == LayerMask.NameToLayer("Player"))
         {
-            GameInfos.Instance.GetEnemyManager().SpawnSmokeFx(tr.position, Quaternion.identity);
+            if (GameInfos.Instance.GetPlayerMain().bIsInvincible)
+                return;
+
+            GameInfos.Instance.GetEnemyManager().SpawnSpawnable(SpawnableEnum.HurtFX, tr.position, Quaternion.identity);
             GameInfos.Instance.GetPlayerMain().camMain.ShakeCam(0.2f);
 
+            StartCoroutine(AutoDestruct());
+        }
+        else if (other.gameObject.layer == LayerMask.NameToLayer("Env"))
+        {
+            GameInfos.Instance.GetEnemyManager().SpawnSpawnable(SpawnableEnum.HurtFX, tr.position, Quaternion.identity);
             StartCoroutine(AutoDestruct());
         }
     }
@@ -48,6 +55,6 @@ public class Projectile : MonoBehaviour
     {
         col.enabled = false;
         yield return null;
-        GameInfos.Instance.GetEnemyManager().DespawnRocketBall(gameObject);
+        GameInfos.Instance.GetEnemyManager().DespawnSpawnable(SpawnableEnum.RocketBall, gameObject);
     }
 }

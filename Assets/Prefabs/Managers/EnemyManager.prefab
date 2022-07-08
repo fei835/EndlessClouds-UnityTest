@@ -45,6 +45,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyCubeGO: {fileID: 6350966590509551760, guid: 05d50f61312eae043b941a6845c4e6d3, type: 3}
-  rocketBallGO: {fileID: 3721208785761534679, guid: 0ef937a447be6d941a27f25a0e9b2ea2, type: 3}
-  smokeFXGO: {fileID: 4678241184935057571, guid: a7662fa4756520148b097ac6cdc39fcb, type: 3}
+  spawnableGos:
+  - {fileID: 3721208785761534679, guid: 0ef937a447be6d941a27f25a0e9b2ea2, type: 3}
+  - {fileID: 4678241184935057571, guid: a7662fa4756520148b097ac6cdc39fcb, type: 3}
+  - {fileID: 4678241184935057571, guid: ee37209abbd167948aadb90237905b28, type: 3}
+  - {fileID: 4678241184935057571, guid: 2562e1b12e2da42488a7090b2e55f3eb, type: 3}
   enemyCubeList: []

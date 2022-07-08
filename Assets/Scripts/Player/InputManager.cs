@@ -39,5 +39,14 @@ public class InputManager : MonoBehaviour
 			P = buttonState.HOLD;
 		else
 			P = buttonState.NULL;
+
+		if (Input.GetKeyDown(KeyCode.Space))
+			SPACE = buttonState.PRESS;
+		else if (Input.GetKeyDown(KeyCode.Space))
+			SPACE = buttonState.RELEASE;
+		else if (Input.GetKeyDown(KeyCode.Space))
+			SPACE = buttonState.HOLD;
+		else
+			SPACE = buttonState.NULL;
 	}
 }

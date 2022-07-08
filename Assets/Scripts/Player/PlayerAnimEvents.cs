@@ -18,4 +18,9 @@ public class PlayerAnimEvents : MonoBehaviour
             playerMain.attackChainable = evt.intParameter;
         }
     }
+
+    void DodgeEnd()
+    {
+        playerMain.SetInvincible(false);
+    }
 }

@@ -5,20 +5,24 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
 
-// I would probably separate EnemyManager, EnemySpawner, maybe have dedicated pool management system
-// and use a mission structure to set the enemy wave system on a bigger project,
-// but on this small scale I'll have them all in EnemyManager and would separate only if it feels necessary over time.
+public enum SpawnableEnum
+{
+    RocketBall,
+    SmokeFX,
+    HurtFX,
+    SlashFX
+}
 
+// I would probably separate EnemyManager, have a dedicated pool management system
+// and use a mission structure to set the enemy wave system and/or level designs on a bigger project,
+// but on this small scale I'll have them all in EnemyManager and would separate only if it feels necessary over time.
 public class EnemyManager : MonoBehaviour
 {
     public GameObject enemyCubeGO;
     private ObjectPool<GameObject> enemyCubePool;
 
-    public GameObject rocketBallGO;
-    private ObjectPool<GameObject> rocketBallPool;
-    
-    public GameObject smokeFXGO;
-    private ObjectPool<GameObject> smokeFXPool;
+    public GameObject[] spawnableGos;
+    private ObjectPool<GameObject>[] spawnablePoolsArray;
 
     [SerializeField]
     private List<GameObject> enemyCubeList = new List<GameObject>();
@@ -29,20 +33,31 @@ public class EnemyManager : MonoBehaviour
 
         enemyCubePool = new ObjectPool<GameObject>(createFunc: () => Instantiate(enemyCubeGO, Vector3.zero, Quaternion.identity), actionOnGet: (obj) => obj.SetActive(true), 
             actionOnRelease: (obj) => obj.SetActive(false), actionOnDestroy: (obj) => Destroy(obj), false, defaultCapacity : 200, maxSize : 1000);
-        rocketBallPool = new ObjectPool<GameObject>(createFunc: () => Instantiate(rocketBallGO, Vector3.zero, Quaternion.identity), actionOnGet: (obj) => obj.SetActive(true), 
-            actionOnRelease: (obj) => obj.SetActive(false), actionOnDestroy: (obj) => Destroy(obj), false, defaultCapacity : 200, maxSize : 1000);
-        smokeFXPool = new ObjectPool<GameObject>(createFunc: () => Instantiate(smokeFXGO, Vector3.zero, Quaternion.identity), actionOnGet: (obj) => obj.SetActive(true),
-            actionOnRelease: (obj) => obj.SetActive(false), actionOnDestroy: (obj) => Destroy(obj), false, defaultCapacity: 200, maxSize: 1000);
+
+        // Cannot use for loop due to retroactive call of CreateFunction.
+        spawnablePoolsArray = new ObjectPool<GameObject>[4]
+        {
+            new ObjectPool<GameObject>(createFunc: () => Instantiate(spawnableGos[0], Vector3.zero, Quaternion.identity), actionOnGet: (obj) => obj.SetActive(true),
+            actionOnRelease: (obj) => obj.SetActive(false), actionOnDestroy: (obj) => Destroy(obj), false, defaultCapacity: 200, maxSize: 1000),
+            new ObjectPool<GameObject>(createFunc: () => Instantiate(spawnableGos[1], Vector3.zero, Quaternion.identity), actionOnGet: (obj) => obj.SetActive(true),
+            actionOnRelease: (obj) => obj.SetActive(false), actionOnDestroy: (obj) => Destroy(obj), false, defaultCapacity: 200, maxSize: 1000),
+            new ObjectPool<GameObject>(createFunc: () => Instantiate(spawnableGos[2], Vector3.zero, Quaternion.identity), actionOnGet: (obj) => obj.SetActive(true),
+            actionOnRelease: (obj) => obj.SetActive(false), actionOnDestroy: (obj) => Destroy(obj), false, defaultCapacity: 200, maxSize: 1000),
+            new ObjectPool<GameObject>(createFunc: () => Instantiate(spawnableGos[3], Vector3.zero, Quaternion.identity), actionOnGet: (obj) => obj.SetActive(true),
+            actionOnRelease: (obj) => obj.SetActive(false), actionOnDestroy: (obj) => Destroy(obj), false, defaultCapacity: 200, maxSize: 1000)
+        };
     }
 
+    // Mission / GameManager
     private void Start()
     {
         SpawnEnemyCube(new Vector3(Random.Range(-5f, 5f), 0f, 10f), Quaternion.identity);
     }
 
+    // Pool Manager
     public GameObject SpawnEnemyCube(Vector3 pos, Quaternion rot)
     {
-        SpawnSmokeFx(pos + Vector3.up, Quaternion.identity);
+        SpawnSpawnable(SpawnableEnum.SmokeFX, pos + Vector3.up, Quaternion.identity);
         GameObject instance = enemyCubePool.Get();
         instance.transform.position = pos;
         instance.transform.rotation = rot;
@@ -55,38 +70,33 @@ public class EnemyManager : MonoBehaviour
     {
         // Respawn an enemy at random within 3m radius from death
         Vector2 randomPos2D = Random.insideUnitCircle * 3f;
-        SpawnEnemyCube(go.transform.position + new Vector3(randomPos2D.x, 0f, randomPos2D.y), Quaternion.identity);
+        StartCoroutine(RespawnNearbyC(go.transform.position + new Vector3(randomPos2D.x, 0f, randomPos2D.y)));
 
         // Despawn previous
-        SpawnSmokeFx(go.transform.position + Vector3.up, Quaternion.identity);
+        SpawnSpawnable(SpawnableEnum.SmokeFX, go.transform.position + Vector3.up, Quaternion.identity);
         enemyCubePool.Release(go);
         enemyCubeList.Remove(enemyCubeList[enemyCubeList.Count - 1]);
         enemyCubeList.TrimExcess();
     }
 
-    public GameObject SpawnRocketBall(Vector3 pos, Quaternion rot)
+    IEnumerator RespawnNearbyC(Vector3 pos)
     {
-        GameObject instance = rocketBallPool.Get();
+        yield return new WaitForSeconds(2f);
+        Transform instanceTr = SpawnEnemyCube(pos, Quaternion.identity).transform;
+        instanceTr.localEulerAngles = new Vector3(0f, Random.Range(0f, 180f), 0f);
+    }
+
+    public GameObject SpawnSpawnable(SpawnableEnum spawnable, Vector3 pos, Quaternion rot)
+    {
+        GameObject instance = spawnablePoolsArray[(int)spawnable].Get();
         instance.transform.position = pos;
         instance.transform.rotation = rot;
-        instance.GetComponent<Projectile>().Init();
+        instance.SendMessage("Init");
         return instance;
     }
-    public void DespawnRocketBall(GameObject go)
+    public void DespawnSpawnable(SpawnableEnum spawnable, GameObject go)
     {
-        rocketBallPool.Release(go);
-    }
-    public GameObject SpawnSmokeFx(Vector3 pos, Quaternion rot)
-    {
-        GameObject instance = smokeFXPool.Get();
-        instance.transform.position = pos;
-        instance.transform.rotation = rot;
-        instance.GetComponent<AutoPool>().Init();
-        return instance;
-    }
-    public void DespawnDespawnFXPool(GameObject go)
-    {
-        smokeFXPool.Release(go);
+        spawnablePoolsArray[(int)spawnable].Release(go);
     }
 
     public int GetActiveEnemyCount()
@@ -102,7 +112,9 @@ public class EnemyManager : MonoBehaviour
         if (Input.GetKeyUp(KeyCode.Y))
             DespawnEnemyCube(enemyCubeList[enemyCubeList.Count - 1]);
         if (Input.GetKeyUp(KeyCode.U))
-            SpawnSmokeFx(new Vector3(Random.Range(-5f, 5f), 1f, 10f), Quaternion.identity);
+            SpawnSpawnable(SpawnableEnum.SmokeFX, new Vector3(Random.Range(-5f, 5f), 1f, 10f), Quaternion.identity);
+        if (Input.GetKeyUp(KeyCode.I))
+            SpawnSpawnable(SpawnableEnum.HurtFX, new Vector3(Random.Range(-5f, 5f), 1f, 10f), Quaternion.identity);
     }
 #endif
 }

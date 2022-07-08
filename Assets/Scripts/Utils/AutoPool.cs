@@ -8,6 +8,8 @@ public class AutoPool : MonoBehaviour
 	public AnimationCurve curve;
 	private bool bHasLight = true;
 
+	public SpawnableEnum spawnableType = SpawnableEnum.SmokeFX;
+
 	void Awake()
 	{
 		if (dLight == null)
@@ -38,6 +40,6 @@ public class AutoPool : MonoBehaviour
 
 		yield return new WaitForSeconds(ninth + 0.5f);
 
-		GameInfos.Instance.GetEnemyManager().DespawnDespawnFXPool(gameObject);
+		GameInfos.Instance.GetEnemyManager().DespawnSpawnable(spawnableType, gameObject);
 	}
 }
